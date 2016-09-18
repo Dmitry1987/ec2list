@@ -21,7 +21,7 @@ var allInstancesPtr *ec2.DescribeInstancesOutput
 func main() {
 
 	// Make sure credentials file exists (windows! use HOME for linux/mac version)
-	credentials := os.Getenv("HOMEPATH") + "/.aws/credentials"
+	credentials := os.Getenv("HOME") + "/.aws/credentials"
 	if _, err := os.Stat(credentials); os.IsNotExist(err) {
 		fmt.Printf("No credentials file found at: %s", credentials)
 		os.Exit(1)
