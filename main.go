@@ -56,7 +56,9 @@ func main() {
 	// we don't have cache yet, or is expired, run 'ec2 describe' query...
 	if needRefresh {
 		// Call DescribeInstances, this loads data into "allInstancesPtr" pointer
-		// Create an EC2 service object
+		// Create an EC2 service object. 
+		// Here I hardcoded my needed region, but it can be configurable from external file like ~/.aws/config
+		// Feel free to fork and make this tool production ready for your needs :) .
 		ec2 := ec2.New(session.New(), &aws.Config{Region: aws.String("us-west-2")})
 		allInstancesPtr, err = ec2.DescribeInstances(nil)
 		// error can happen if we have no "describe ec2" permission...
