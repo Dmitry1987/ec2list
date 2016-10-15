@@ -1,7 +1,9 @@
 ec2list
 
 The tool used to quickly search through all EC2 instances and show its public IP.
-Easy filtering by words from "Name" tag.
+Easy filtering by words from "Name" tag. Uses ```~/.aws/credentials``` file to access AWS instances information. Caching results for 1 hour, to not query AWS each time (caching file will be named ```cache.gob``` and it saves to same location where the binary is).
+
+After compiling, or downloading the release, put the binary in your PATH (depends on your OS). And make sure you have the ```~/.aws/credentials``` file with at least "ReadOnly" permissions to your AWS account.
 
 Usage:
 ```ec2list <some keyword> <another keyword>```
