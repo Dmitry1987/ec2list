@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"os"
 	"bytes"
@@ -20,11 +21,20 @@ import (
 )
 
 var allInstancesPtr *ec2.DescribeInstancesOutput
+var chosenRegion string
+var keywords []string
+//var jsonConfig []byte
 
+type Config struct {
+    CacheTime  int
+    Regions []string
+}
 // Maybe later will split to several functions and files,
 // for now it checks keywords for filtering, if supplied, shows needed servers,
 // if not, lists all.
 func main() {
+
+
 
 	// Make sure credentials file exists 
 	usr, _ := user.Current()
@@ -34,9 +44,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 1 arg is script filename, so check if we got a text query?
-	// if not, this keywords slice will be EMPTY so later we skip filtering.
-	keywords := os.Args[1:]
+	// load config file if exist, otherwise set defaults
+	jsonConfig, err := ioutil.ReadFile(usr.HomeDir + "/.ec2list")
+    if err != nil {
+    	jsonConfig = []byte(`{
+        					"CacheTime": 3600,
+        					"Regions": [ "us-west-2", "us-east-1" ]
+    						}`)
+    }
+    // can iterate through conf.Regions[] , but will hardcode for now what i need...
+
+
+    var conf Config
+    err = json.Unmarshal(jsonConfig, &conf)
+    if err != nil {
+        fmt.Println("error:", err)
+    }
+
+    // default region unless we specify flag
+	chosenRegion = "us-west-2"
+	// if no keywords in args, then this will be empty and later we skip filtering
+	keywords = os.Args[1:]
+
+	// args can be either keywords for search, or short region flags
+	// os.Args[0] is the program name, so let's see if we have ANY args at all
+    if len(os.Args) > 1 {
+    	// if virginia requested
+	    if os.Args[1] == "-v" {
+	    	chosenRegion = "us-east-1"
+	    	keywords = os.Args[2:]
+	    } 
+	} 
+
 
 	// This will be passed to columnize formatter, we need to pass array of strings,
 	// by default delimeter of columns is "pipe" character (can override)
@@ -45,41 +84,42 @@ func main() {
 
 	// used when we verify cache exist and not expired yet
 	needRefresh := false
-	// cache expiration time
-	cacheSeconds := 3600
+
 
 	// check if we have cache by getting file status (atime,mtime, etc')
-	cacheModTime, err := os.Stat("cache.gob")
+	cacheModTime, err := os.Stat("." + chosenRegion + ".cache.gob")
 	// if no file, we get err
 	if err != nil {
 		needRefresh = true
 		//DEBUG fmt.Println("Error get cache file, will create new.")
 	} else {
-		if (cacheModTime.ModTime().Unix() + int64(cacheSeconds)) < time.Now().Unix() {
+		if (cacheModTime.ModTime().Unix() + int64(conf.CacheTime)) < time.Now().Unix() {
 			//DEBUG fmt.Println("Cache expired, refreshing...")
 			needRefresh = true
 		}
 	}
 
+
+	// iterate through all regions
+
 	// we don't have cache yet, or is expired, run 'ec2 describe' query...
 	if needRefresh {
-		// Call DescribeInstances, this loads data into "allInstancesPtr" pointer
+		fmt.Println("Searching  " + chosenRegion)
 		// Create an EC2 service object. 
-		// Here I hardcoded my needed region, but it can be configurable from external file like ~/.aws/config
-		// Feel free to fork and make this tool production ready for your needs :) .
-		ec2 := ec2.New(session.New(), &aws.Config{Region: aws.String("us-west-2")})
+		ec2 := ec2.New(session.New(), &aws.Config{Region: aws.String(chosenRegion)})
+		// Call DescribeInstances, this loads data into "allInstancesPtr" pointer
 		allInstancesPtr, err = ec2.DescribeInstances(nil)
 		// error can happen if we have no "describe ec2" permission...
 		if err != nil {
 			panic(err)
 		}
 		// if all ok, save all this data to cache
-		saveCache("cache.gob", &allInstancesPtr)
+		saveCache("." + chosenRegion + ".cache.gob", &allInstancesPtr)
 		//DEBUG fmt.Println("saved cache!")
 	} else {
 		// load cache from file
 		//DEBUG fmt.Println("loading file...")
-		loadCache("cache.gob", &allInstancesPtr)
+		loadCache("." + chosenRegion + ".cache.gob", &allInstancesPtr)
 	}
 
 	// will be used as prefix number, for quick ssh to servers in list
@@ -148,7 +188,7 @@ func main() {
     // we need to address our server arrays with +2, because first 2 items were headers for columnize
     // and placeholders in serverID, so their length will be same, to avoid confusion when addressing only IP or full lines 
     fmt.Print("Connecting to  [ (" + outputLines[num + 1] + " ]")
-    
+    fmt.Print(" ")
 	// pass the IP from serverID array that holds IPs by position order like numbered list we displayed
     // for now I decided to exec external ssh client whatever installed on user machine
 	cmd := exec.Command("ssh","-o UserKnownHostsFile=null","-o StrictHostKeyChecking=no","-p 22", "user@"+serverID[num + 1] )
