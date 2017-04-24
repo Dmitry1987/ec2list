@@ -23,4 +23,4 @@ You want to quickly list IPs of all ```kubernetes minion staging``` (by Tag Name
 It simplified searches a lot in our department, we have loooong naming convention on servers, and thousands of ec2 instances.
 Searching in AWS web console was less convenient. With this tool you don't need to leave the command line, to find needed server to ssh to.
 
-Next feature will be implementing SSH into found servers by number (list will be ordered by number, and pressing corresponding number will ssh you to that server.
+*Can easily SSH into found servers by chosing number* (list ordered by numbers, and pressing corresponding number opens ssh to that server).
